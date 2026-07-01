@@ -1,23 +1,15 @@
 #include <Arduino.h>
 #include <DHT.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
-// ===================== CONFIGURAÇÃO =====================
-// Preencha com os dados da sua rede Wi-Fi.
-const char* WIFI_SSID     = "NOME_DA_SUA_REDE";
-const char* WIFI_PASSWORD = "SENHA_DO_WIFI";
-
-// Endereço da sua API FastAPI (use o IPv4 do PC que roda a API, veja `ipconfig`).
-// Exemplo: "http://192.168.0.15:8000/leituras"
-const char* API_URL = "http://192.168.0.15:8000/leituras";
-
-// Mesma chave definida em API_KEY no arquivo .env da API.
-const char* API_KEY = "troque-esta-chave-secreta";
+// As credenciais (Wi-Fi, URL da API e API_KEY) ficam no arquivo include/secrets.h,
+// que NÃO vai para o Git. Copie o secrets.example.h para secrets.h e preencha.
+#include "secrets.h"
 
 // Intervalo entre envios (em milissegundos). 30000 = 30 segundos.
 const unsigned long INTERVALO_ENVIO = 30000;
-// =======================================================
 
 // Definição dos pinos escolhidos
 #define DHTPIN 5        // Pino digital D5 para o sensor DHT11
@@ -58,8 +50,21 @@ bool enviarLeitura(float temperatura, float humidade, float luz) {
     if (WiFi.status() != WL_CONNECTED) return false;
   }
 
+  // Escolhe o cliente conforme a URL: HTTPS (Railway) ou HTTP (API local).
+  // Ambos ficam na pilha; só um é usado.
+  WiFiClient clientHttp;
+  WiFiClientSecure clientHttps;
+  bool ehHttps = strncmp(API_URL, "https", 5) == 0;
+
   HTTPClient http;
-  http.begin(API_URL);
+  if (ehHttps) {
+    // setInsecure() não valida o certificado do servidor — simples e suficiente
+    // para este projeto. Para validar de verdade, seria preciso embutir o CA.
+    clientHttps.setInsecure();
+    http.begin(clientHttps, API_URL);
+  } else {
+    http.begin(clientHttp, API_URL);
+  }
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-API-Key", API_KEY);
 

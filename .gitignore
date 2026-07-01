@@ -4,6 +4,9 @@
 .vscode/launch.json
 .vscode/ipch
 
+# Segredos do firmware (Wi-Fi, API_KEY) — nunca subir
+include/secrets.h
+
 # API (Python / FastAPI)
 api/.env
 .env
